@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel Vital — Kalkulator Kesehatan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #10161A;
+    --panel: #182229;
+    --panel-raised: #1E2A32;
+    --text: #E8E6DE;
+    --text-dim: #8FA0A8;
+    --line: #2A3640;
+    --accent-ok: #6FCF97;
+    --accent-warn: #E8A33D;
+    --accent-alert: #E1636B;
+    --accent-ok-dim: rgba(111,207,151,0.14);
+    --accent-warn-dim: rgba(232,163,61,0.14);
+    --accent-alert-dim: rgba(225,99,107,0.14);
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    padding-bottom: 4rem;
+  }
+
+  ::selection{ background: var(--accent-ok-dim); color: var(--accent-ok); }
+
+  /* --- Vital strip signature element --- */
+  .vital-strip{
+    width: 100%;
+    height: 3px;
+    position: relative;
+    overflow: hidden;
+    background: var(--line);
+  }
+  .vital-strip svg{
+    position: absolute;
+    top: -18px;
+    left: 0;
+    height: 40px;
+    width: 200%;
+    animation: scroll-wave 7s linear infinite;
+  }
+  .vital-strip path{
+    stroke: var(--accent-ok);
+    stroke-width: 1.4;
+    fill: none;
+    opacity: 0.85;
+  }
+  @keyframes scroll-wave{
+    from{ transform: translateX(0); }
+    to{ transform: translateX(-50%); }
+  }
+
+  header{
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 2rem;
+  }
+  .eyebrow{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent-ok);
+    margin-bottom: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .eyebrow::before{
+    content: "";
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent-ok);
+    box-shadow: 0 0 8px var(--accent-ok);
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{ opacity: 1; }
+    50%{ opacity: 0.3; }
+  }
+  h1{
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: clamp(1.9rem, 5vw, 2.8rem);
+    letter-spacing: -0.01em;
+    margin-bottom: 0.7rem;
+  }
+  header p{
+    color: var(--text-dim);
+    max-width: 46ch;
+    line-height: 1.6;
+    font-size: 0.98rem;
+  }
+
+  main{
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+
+  /* --- Channel tabs --- */
+  .channels{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+  .channel-btn{
+    background: var(--panel);
+    color: var(--text-dim);
+    border: none;
+    padding: 0.9rem 0.5rem;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    text-align: center;
+  }
+  .channel-btn span{ display:block; color: var(--text-dim); font-size: 0.65rem; opacity:0.7; margin-bottom:2px;}
+  .channel-btn:hover{ background: var(--panel-raised); color: var(--text); }
+  .channel-btn.active{ background: var(--panel-raised); color: var(--accent-ok); }
+  .channel-btn.active span{ color: var(--accent-ok); opacity: 0.9; }
+  .channel-btn:focus-visible{ outline: 2px solid var(--accent-ok); outline-offset: -2px; }
+
+  /* --- Panel layout --- */
+  .panel{
+    display: none;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 1.8rem;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+  }
+  .panel.active{ display: grid; }
+
+  @media (max-width: 700px){
+    .panel{ grid-template-columns: 1fr; padding: 1.4rem; }
+  }
+
+  .field-group{ display: flex; flex-direction: column; gap: 1.1rem; }
+  label{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    display: block;
+    margin-bottom: 0.45rem;
+  }
+  input[type=number], select{
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    padding: 0.7rem 0.8rem;
+    transition: border-color 0.15s;
+  }
+  input[type=number]:focus, select:focus{
+    outline: none;
+    border-color: var(--accent-ok);
+  }
+  input[type=number]:focus-visible, select:focus-visible{
+    outline: 2px solid var(--accent-ok);
+    outline-offset: 1px;
+  }
+  .radio-row{ display:flex; gap: 0.6rem; }
+  .radio-row label{
+    flex: 1;
+    text-align: center;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.6rem 0.4rem;
+    cursor: pointer;
+    margin: 0;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    transition: all 0.15s;
+  }
+  .radio-row input{ display:none; }
+  .radio-row input:checked + label{
+    border-color: var(--accent-ok);
+    color: var(--accent-ok);
+    background: var(--accent-ok-dim);
+  }
+
+  /* --- Readout --- */
+  .readout{
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 0.9rem;
+  }
+  .readout-label{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .readout-value{
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 700;
+    font-size: clamp(2.2rem, 5vw, 3rem);
+    line-height: 1;
+    transition: color 0.3s;
+  }
+  .readout-value sup{
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-dim);
+    margin-left: 0.3rem;
+  }
+  .chip{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    display: inline-block;
+  }
+  .gauge{
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--line);
+    position: relative;
+    overflow: visible;
+    margin-top: 0.3rem;
+  }
+  .gauge-zones{
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    overflow: hidden;
+    display: flex;
+  }
+  .gauge-zones div{ height: 100%; }
+  .gauge-needle{
+    position: absolute;
+    top: -4px;
+    width: 3px;
+    height: 16px;
+    background: var(--text);
+    border-radius: 2px;
+    transform: translateX(-50%);
+    transition: left 0.4s ease;
+    box-shadow: 0 0 6px rgba(0,0,0,0.5);
+  }
+  .readout-note{
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  footer{
+    max-width: 960px;
+    margin: 3rem auto 0;
+    padding: 1.5rem 1.5rem 0;
+    border-top: 1px solid var(--line);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .vital-strip svg{ animation: none; }
+    .eyebrow::before{ animation: none; }
+    .gauge-needle{ transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="vital-strip">
+  <svg viewBox="0 0 800 40" preserveAspectRatio="none">
+    <path d="M0,20 L60,20 L75,20 L85,4 L95,36 L105,20 L120,20 L400,20 L415,20 L425,4 L435,36 L445,20 L460,20 L800,20 L860,20 L875,4 L885,36 L895,20 L910,20 L1190,20 L1205,20 L1215,4 L1225,36 L1235,20 L1250,20 L1600,20" />
+  </svg>
+</div>
+
+<header>
+  <div class="eyebrow">Live · Tiga Kanal Terpantau</div>
+  <h1>Panel Vital</h1>
+  <p>Kalkulator kesehatan yang membaca angkamu seperti monitor: langsung, jelas, tanpa basa-basi. Isi data, lihat pembacaan.</p>
+</header>
+
+<main>
+  <div class="channels" role="tablist" aria-label="Pilih kanal kalkulator">
+    <button class="channel-btn active" data-panel="bmi" role="tab" aria-selected="true"><span>KANAL BMI</span>Indeks Massa Tubuh</button>
+    <button class="channel-btn" data-panel="kalori" role="tab" aria-selected="false"><span>KANAL CAL</span>Kebutuhan Kalori</button>
+    <button class="channel-btn" data-panel="air" role="tab" aria-selected="false"><span>KANAL H2O</span>Kebutuhan Air</button>
+  </div>
+
+  <!-- BMI PANEL -->
+  <section class="panel active" id="panel-bmi">
+    <div class="field-group">
+      <div>
+        <label for="bmi-tinggi">Tinggi badan (cm)</label>
+        <input type="number" id="bmi-tinggi" inputmode="decimal" placeholder="170" min="0">
+      </div>
+      <div>
+        <label for="bmi-berat">Berat badan (kg)</label>
+        <input type="number" id="bmi-berat" inputmode="decimal" placeholder="65" min="0">
+      </div>
+    </div>
+    <div class="readout">
+      <div class="readout-label">Pembacaan BMI</div>
+      <div class="readout-value" id="bmi-value">—<sup>kg/m²</sup></div>
+      <span class="chip" id="bmi-chip">menunggu data</span>
+      <div class="gauge">
+        <div class="gauge-zones">
+          <div style="width:18.5%; background:var(--accent-warn);"></div>
+          <div style="width:6.5%; background:var(--accent-ok);"></div>
+          <div style="width:25%; background:var(--accent-ok);"></div>
+          <div style="width:50%; background:var(--accent-alert);"></div>
+        </div>
+        <div class="gauge-needle" id="bmi-needle" style="left:0%"></div>
+      </div>
+      <div class="readout-note" id="bmi-note">Masukkan tinggi dan berat untuk melihat pembacaan.</div>
+    </div>
+  </section>
+
+  <!-- KALORI PANEL -->
+  <section class="panel" id="panel-kalori">
+    <div class="field-group">
+      <div>
+        <label>Jenis kelamin</label>
+        <div class="radio-row">
+          <input type="radio" name="gender" id="g-pria" value="pria" checked><label for="g-pria">Pria</label>
+          <input type="radio" name="gender" id="g-wanita" value="wanita"><label for="g-wanita">Wanita</label>
+        </div>
+      </div>
+      <div>
+        <label for="cal-usia">Usia (tahun)</label>
+        <input type="number" id="cal-usia" placeholder="25" min="0">
+      </div>
+      <div>
+        <label for="cal-tinggi">Tinggi badan (cm)</label>
+        <input type="number" id="cal-tinggi" placeholder="170" min="0">
+      </div>
+      <div>
+        <label for="cal-berat">Berat badan (kg)</label>
+        <input type="number" id="cal-berat" placeholder="65" min="0">
+      </div>
+      <div>
+        <label for="cal-aktivitas">Tingkat aktivitas</label>
+        <select id="cal-aktivitas">
+          <option value="1.2">Minim gerak (kerja duduk)</option>
+          <option value="1.375">Ringan (olahraga 1–3x/minggu)</option>
+          <option value="1.55" selected>Sedang (olahraga 3–5x/minggu)</option>
+          <option value="1.725">Aktif (olahraga 6–7x/minggu)</option>
+          <option value="1.9">Sangat aktif (fisik berat harian)</option>
+        </select>
+      </div>
+    </div>
+    <div class="readout">
+      <div class="readout-label">Kebutuhan Kalori Harian</div>
+      <div class="readout-value" id="cal-value">—<sup>kkal</sup></div>
+      <span class="chip" id="cal-chip">menunggu data</span>
+      <div class="readout-note" id="cal-note">Estimasi TDEE memakai rumus Mifflin-St Jeor. Ini panduan awal, bukan resep medis.</div>
+    </div>
+  </section>
+
+  <!-- AIR MINUM PANEL -->
+  <section class="panel" id="panel-air">
+    <div class="field-group">
+      <div>
+        <label for="air-berat">Berat badan (kg)</label>
+        <input type="number" id="air-berat" placeholder="65" min="0">
+      </div>
+      <div>
+        <label for="air-aktivitas">Tingkat aktivitas harian</label>
+        <select id="air-aktivitas">
+          <option value="0">Santai (jarang berkeringat)</option>
+          <option value="350" selected>Normal (aktivitas harian biasa)</option>
+          <option value="700">Aktif (olahraga rutin / banyak keringat)</option>
+          <option value="1000">Sangat aktif (kerja fisik berat / cuaca panas)</option>
+        </select>
+      </div>
+    </div>
+    <div class="readout">
+      <div class="readout-label">Kebutuhan Air Harian</div>
+      <div class="readout-value" id="air-value">—<sup>ml</sup></div>
+      <span class="chip" id="air-chip">menunggu data</span>
+      <div class="readout-note" id="air-note">Estimasi dasar 30–35 ml per kg berat badan, ditambah aktivitas. Sesuaikan dengan kondisi tubuh dan cuaca.</div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Panel Vital — dibuat untuk perkiraan umum, bukan pengganti konsultasi tenaga medis.
+</footer>
+
+<script>
+  // --- Tab switching ---
+  const buttons = document.querySelectorAll('.channel-btn');
+  const panels = document.querySelectorAll('.panel');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      buttons.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
+      panels.forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      btn.setAttribute('aria-selected','true');
+      document.getElementById('panel-' + btn.dataset.panel).classList.add('active');
+    });
+  });
+
+  function setChip(el, text, color, dim){
+    el.textContent = text;
+    el.style.color = color;
+    el.style.background = dim;
+    el.style.border = '1px solid ' + color;
+  }
+
+  // --- BMI ---
+  const bmiTinggi = document.getElementById('bmi-tinggi');
+  const bmiBerat = document.getElementById('bmi-berat');
+  const bmiValue = document.getElementById('bmi-value');
+  const bmiChip = document.getElementById('bmi-chip');
+  const bmiNote = document.getElementById('bmi-note');
+  const bmiNeedle = document.getElementById('bmi-needle');
+
+  function hitungBMI(){
+    const t = parseFloat(bmiTinggi.value);
+    const b = parseFloat(bmiBerat.value);
+    if(!t || !b || t <= 0 || b <= 0){
+      bmiValue.innerHTML = '—<sup>kg/m²</sup>';
+      setChip(bmiChip, 'menunggu data', 'var(--text-dim)', 'transparent');
+      bmiNote.textContent = 'Masukkan tinggi dan berat untuk melihat pembacaan.';
+      bmiNeedle.style.left = '0%';
+      return;
+    }
+    const meter = t / 100;
+    const bmi = b / (meter * meter);
+    bmiValue.innerHTML = bmi.toFixed(1) + '<sup>kg/m²</sup>';
+
+    let kategori, color, dim, note, pos;
+    if(bmi < 18.5){
+      kategori = 'kurus'; color = 'var(--accent-warn)'; dim = 'var(--accent-warn-dim)';
+      note = 'Berat badan di bawah rentang ideal. Pertimbangkan asupan kalori lebih terkontrol.';
+      pos = (bmi / 18.5) * 18.5;
+    } else if(bmi < 25){
+      kategori = 'normal'; color = 'var(--accent-ok)'; dim = 'var(--accent-ok-dim)';
+      note = 'Berada di rentang berat badan ideal. Pertahankan pola makan dan aktivitasmu.';
+      pos = 18.5 + ((bmi - 18.5) / 6.5) * 25;
+    } else if(bmi < 30){
+      kategori = 'kelebihan berat'; color = 'var(--accent-warn)'; dim = 'var(--accent-warn-dim)';
+      note = 'Sedikit di atas rentang ideal. Perhatikan pola makan dan tingkatkan aktivitas ringan.';
+      pos = 43.5 + ((bmi - 25) / 5) * 25;
+    } else {
+      kategori = 'obesitas'; color = 'var(--accent-alert)'; dim = 'var(--accent-alert-dim)';
+      note = 'Di atas rentang ideal. Disarankan konsultasi dengan tenaga medis untuk rencana yang tepat.';
+      pos = 68.5 + Math.min((bmi - 30) / 15, 1) * 31.5;
+    }
+    setChip(bmiChip, kategori, color, dim);
+    bmiValue.style.color = color;
+    bmiNote.textContent = note;
+    bmiNeedle.style.left = Math.min(Math.max(pos,0),100) + '%';
+  }
+  bmiTinggi.addEventListener('input', hitungBMI);
+  bmiBerat.addEventListener('input', hitungBMI);
+
+  // --- Kalori (Mifflin-St Jeor) ---
+  const calUsia = document.getElementById('cal-usia');
+  const calTinggi = document.getElementById('cal-tinggi');
+  const calBerat = document.getElementById('cal-berat');
+  const calAktivitas = document.getElementById('cal-aktivitas');
+  const calValue = document.getElementById('cal-value');
+  const calChip = document.getElementById('cal-chip');
+  const calNote = document.getElementById('cal-note');
+
+  function hitungKalori(){
+    const usia = parseFloat(calUsia.value);
+    const tinggi = parseFloat(calTinggi.value);
+    const berat = parseFloat(calBerat.value);
+    const aktivitas = parseFloat(calAktivitas.value);
+    const gender = document.querySelector('input[name=gender]:checked').value;
+
+    if(!usia || !tinggi || !berat || usia <= 0 || tinggi <= 0 || berat <= 0){
+      calValue.innerHTML = '—<sup>kkal</sup>';
+      setChip(calChip, 'menunggu data', 'var(--text-dim)', 'transparent');
+      return;
+    }
+
+    let bmr;
+    if(gender === 'pria'){
+      bmr = 10 * berat + 6.25 * tinggi - 5 * usia + 5;
+    } else {
+      bmr = 10 * berat + 6.25 * tinggi - 5 * usia - 161;
+    }
+    const tdee = Math.round(bmr * aktivitas);
+    calValue.innerHTML = tdee.toLocaleString('id-ID') + '<sup>kkal</sup>';
+    calValue.style.color = 'var(--accent-ok)';
+    setChip(calChip, 'estimasi TDEE', 'var(--accent-ok)', 'var(--accent-ok-dim)');
+    calNote.textContent = 'BMR ' + Math.round(bmr).toLocaleString('id-ID') + ' kkal, disesuaikan tingkat aktivitas. Kurangi ±500 kkal untuk turun berat badan, tambah untuk naik berat badan.';
+  }
+  [calUsia, calTinggi, calBerat, calAktivitas].forEach(el => el.addEventListener('input', hitungKalori));
+  document.querySelectorAll('input[name=gender]').forEach(el => el.addEventListener('change', hitungKalori));
+
+  // --- Air Minum ---
+  const airBerat = document.getElementById('air-berat');
+  const airAktivitas = document.getElementById('air-aktivitas');
+  const airValue = document.getElementById('air-value');
+  const airChip = document.getElementById('air-chip');
+
+  function hitungAir(){
+    const berat = parseFloat(airBerat.value);
+    const tambahan = parseFloat(airAktivitas.value);
+    if(!berat || berat <= 0){
+      airValue.innerHTML = '—<sup>ml</sup>';
+      setChip(airChip, 'menunggu data', 'var(--text-dim)', 'transparent');
+      return;
+    }
+    const total = Math.round(berat * 33 + tambahan);
+    airValue.innerHTML = total.toLocaleString('id-ID') + '<sup>ml</sup>';
+    airValue.style.color = 'var(--accent-ok)';
+    setChip(airChip, '≈ ' + (total/1000).toFixed(1) + ' liter/hari', 'var(--accent-ok)', 'var(--accent-ok-dim)');
+  }
+  airBerat.addEventListener('input', hitungAir);
+  airAktivitas.addEventListener('input', hitungAir);
+</script>
+
+</body>
+</html>
